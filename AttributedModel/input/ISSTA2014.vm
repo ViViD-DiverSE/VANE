@@ -1,0 +1,37 @@
+package fr.inria.lang.vm.examples.MOTIV
+
+@name "Video Content Generator"
+@version 0.1
+@description "created as motivating example for ISSTA 2014 conference paper"
+@author "Mauricio AlfŽrez"
+@email mauricio.alferez@inria.fr
+@organization "INRIA, Rennes, France"
+@date "August, 2013"
+
+Relationships:
+scene{
+	background {
+		oneOf {
+			urban
+			countryside
+		}
+	}
+	? objects {
+		someOf {
+	 		vehicles
+			people
+		}
+	}
+}
+Attributes:
+int people.quantity [0..200]
+enum background.identifier ['synthetic','natural' ]
+real objects.motion [0.0 .. 1.0]
+
+Constraints:
+urban requires vehicles
+countryside -> people.quantity < 10
+
+
+
+
