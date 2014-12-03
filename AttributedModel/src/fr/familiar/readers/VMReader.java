@@ -4,6 +4,7 @@ package fr.familiar.readers;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -19,17 +20,14 @@ import es.us.isa.FAMA.models.variabilityModel.parsers.IReader;
 import fr.familiar.attributedfm.AttributedFeatureModel;
 import fr.familiar.attributedfm.ComplexConstraint;
 import fr.familiar.attributedfm.GenericAttribute;
-import fr.familiar.attributedfm.domain.BooleanDomain;
+import fr.familiar.attributedfm.domain.BooleanRange;
 import fr.familiar.attributedfm.domain.Cardinality;
 import fr.familiar.attributedfm.domain.Domain;
+import fr.familiar.attributedfm.domain.IntegerRange;
 import fr.familiar.attributedfm.domain.KeyWords;
 import fr.familiar.attributedfm.domain.Range;
-import fr.familiar.attributedfm.domain.RangeIntegerDomain;
-import fr.familiar.attributedfm.domain.RangeRealDomain;
 import fr.familiar.attributedfm.domain.RealRange;
-import fr.familiar.attributedfm.domain.SetIntegerDomain;
-import fr.familiar.attributedfm.domain.SetRealDomain;
-import fr.familiar.attributedfm.domain.StringDomain;
+import fr.familiar.attributedfm.domain.StringRange;
 import fr.familiar.attributedfm.util.Node;
 import fr.familiar.attributedfm.util.Tree;
 import fr.inria.lang.VMStandaloneSetup;
@@ -69,6 +67,7 @@ import fr.inria.lang.vM.Multiplication;
 import fr.inria.lang.vM.NumericExpression;
 import fr.inria.lang.vM.Or;
 import fr.inria.lang.vM.Orgroup;
+import fr.inria.lang.vM.PackageDeclaration;
 import fr.inria.lang.vM.Plus;
 import fr.inria.lang.vM.PrimitiveExpression;
 import fr.inria.lang.vM.RealAttrDefBounded;
@@ -97,19 +96,38 @@ public class VMReader implements IReader {
 		
 		fr.familiar.attributedfm.AttributedFeatureModel fm = new AttributedFeatureModel();
 
+		VmBlock relationships = null;
+		VmBlock attsblock =null;
+		VmBlock constratins=null;
+		
 		EList<VmBlock> bl = model.getBlocks();
 		for(VmBlock block:bl){
 			if (block instanceof Relationships) {
-				FeatureHierarchy fhs= ((Relationships) block).getRoot();
-				fr.familiar.attributedfm.Feature ffeat = new fr.familiar.attributedfm.Feature(fhs.getParent().getName());
-				visitFeatureHierarchy(ffeat, fhs);
-				fm.setRoot(ffeat);
+				relationships=block;
 			}else if(block instanceof Attributes){
-				visitAttributes(((Attributes) block).getAttrDefs(), fm);
+				attsblock=block;
 			}else if(block instanceof Constraints){
-				visitConstraints(((Constraints) block).getConstraints(),fm);
+				constratins=block;
+			}else if(block instanceof PackageDeclaration){
+				for(VmBlock blockinpkg :((PackageDeclaration) block).getBlocks()){
+					if (blockinpkg instanceof Relationships) {
+						relationships=blockinpkg;
+					}else if(blockinpkg instanceof Attributes){
+						attsblock=blockinpkg;
+						
+					}else if(blockinpkg instanceof Constraints){
+						constratins=blockinpkg;
+						
+						}
+				}
 			}
 		}
+		FeatureHierarchy fhs= ((Relationships) relationships).getRoot();
+		fr.familiar.attributedfm.Feature ffeat = new fr.familiar.attributedfm.Feature(fhs.getParent().getName());
+		visitFeatureHierarchy(ffeat, fhs);
+		fm.setRoot(ffeat);
+		visitAttributes(((Attributes) attsblock).getAttrDefs(), fm);
+		visitConstraints(((Constraints) constratins).getConstraints(),fm);
 
 		return fm;
 	}
@@ -259,16 +277,24 @@ public class VMReader implements IReader {
 			attribute.nonDesicion=atdef.isNotDecidable();
 			BasicAttrDef at = atdef.getBasicAttrDef();
 			if (at instanceof BooleanAttrDef) {
-				//Create a boolean domain
-				Domain domain= new BooleanDomain();
+				
 				String name= ((BooleanAttrDef) at).getName().getName();
+				
 				Boolean val = Boolean.parseBoolean(((BooleanAttrDef) at).getValue());
 				if(((BooleanAttrDef) at).getDefault()!=null){
 					Boolean defaultvalue=Boolean.parseBoolean(((BooleanAttrDef) at).getDefault().getValue());
 					attribute.setDefaultValue(defaultvalue);
 				}
-				attribute.setDomain(domain);
-				attribute.setValue(val);
+				
+				if(val!=null){
+					//tiene 2 valores
+					attribute.setDomain(new Domain(new BooleanRange()));
+				}else{
+					Collection<Integer> values= new LinkedList<Integer>();
+					if(val==true){values.add(1);}else{values.add(0);}
+					Domain domain = new Domain(new IntegerRange(values));
+				
+				}
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((BooleanAttrDef) at).getName().getHead().getOwnedFeature().getName());
 				searchFeatureByName.addAttribute(attribute);
@@ -279,11 +305,10 @@ public class VMReader implements IReader {
 					String defaultvalue=((StringAttrDef) at).getDefault().getValue();
 					attribute.setDefaultValue(defaultvalue);
 				}
-				List<String> col = new ArrayList<String>();
-				col.add(val);
-				Domain domain= new StringDomain(col);
+				StringRange rang= new StringRange();
+				rang.addString(val);
+				Domain domain= new Domain(rang);
 				attribute.setDomain(domain);
-				attribute.setValue(val);
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((StringAttrDef) at).getName().getHead().getOwnedFeature().getName());
 				searchFeatureByName.addAttribute(attribute);
@@ -298,7 +323,7 @@ public class VMReader implements IReader {
 				
 				Set<Integer> vals= new HashSet<Integer>();
 				EList<IntegerAttrDefComplement> complements = ((IntegerAttrDefBounded) at).getComplements();
-				Range range = null;
+				Range range = new IntegerRange();
 				for(IntegerAttrDefComplement complement:complements){
 					int delta=1;
 					if(complement.getDelta()!=null){
@@ -306,16 +331,14 @@ public class VMReader implements IReader {
 					}
 					Integer max=Integer.parseInt(complement.getMax());
 					Integer min= Integer.parseInt(complement.getMin());
-					range=new Range(min,max);
 					//Add the values to the set
 					for(int i=min;i<=max;i+=delta){
-						vals.add(i);
+						range.getItems().add(new Integer(i));
 					}
 				}
 				
 				//Domain domain= new SetIntegerDomain(vals);
-				RangeIntegerDomain domain = new RangeIntegerDomain();
-				domain.addRange(range);
+				Domain domain = new Domain(range);
 				attribute.setDomain(domain);
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((IntegerAttrDefBounded) at).getName().getHead().getOwnedFeature().getName());
@@ -329,9 +352,10 @@ public class VMReader implements IReader {
 					attribute.setDefaultValue(defaultvalue);
 				}
 				
-				Collection<Range> ranges= new ArrayList<Range>();
-				ranges.add(new Range(Integer.MIN_VALUE, Integer.MAX_VALUE));
-				Domain domain= new RangeIntegerDomain(ranges);
+				Range range = new IntegerRange();
+				range.getItems().add(Integer.MIN_VALUE);
+				range.getItems().add(Integer.MAX_VALUE);
+				Domain domain= new Domain(range);
 				attribute.setDomain(domain);
 				//attribute.setValue(val);
 				attribute.setName(name);
@@ -344,24 +368,35 @@ public class VMReader implements IReader {
 					attribute.setDefaultValue(defaultvalue);
 				}
 				
-				Set<Float> vals= new HashSet<Float>();
+				//Set<Float> vals= new HashSet<Float>();
+				Collection<Range> ranges= new LinkedList<Range>();
 				EList<RealAttrDefComplement> complements = ((RealAttrDefBounded) at).getComplement();
 				for(RealAttrDefComplement complement:complements){
-					float delta=0.01f;//Defined a minimum delta to prevent overload of the machine
-					if(complement.getDelta()!=null){
-						delta=Float.parseFloat(complement.getDelta().getValue());
-					}else{
-						System.err.println("A default float of .01 is bein used for the attribute :"+name);
-					}
 					Float max=Float.parseFloat(complement.getMax());
 					Float min= Float.parseFloat(complement.getMin());
-					//Add the values to the set
-					for(float i=min;i<=max;i+=delta){
-						vals.add(i);
+					Range r= null;
+					Collection<Float> floats = new LinkedList<Float>();
+					if(complement.getDelta()!=null){
+						float delta=Float.parseFloat(complement.getDelta().getValue());
+						//a set of values
+						//Add the values to the set
+						for(float i=min;i<=max;i+=delta){
+							floats.add(i);
+						}	
+					}else{
+						//max min
+						floats.add(max);
+						floats.add(min);
 					}
+					
+					ranges.add(new RealRange(floats));
+					
 				}
 				
-				Domain domain= new SetRealDomain(vals);
+				//Domain domain= new SetRealDomain(vals);
+				
+				Domain domain = new Domain();
+				domain.ranges=ranges;
 				attribute.setDomain(domain);
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((RealAttrDefBounded) at).getName().getHead().getOwnedFeature().getName());
@@ -369,16 +404,19 @@ public class VMReader implements IReader {
 			} else if (at instanceof RealAttrDefUnbounded) {
 				
 				String name= ((RealAttrDefUnbounded) at).getName().getName();
-				Integer val =Integer.parseInt(((RealAttrDefUnbounded) at).getValue());
+				Float val =Float.parseFloat(((RealAttrDefUnbounded) at).getValue());
 				if(((RealAttrDefUnbounded) at).getDefault()!=null){
 					Float defaultvalue=Float.parseFloat(((RealAttrDefUnbounded) at).getDefault().getValue());
 					attribute.setDefaultValue(defaultvalue);
 				}
-				RealRange range = new RealRange(Float.MAX_VALUE, Float.MAX_VALUE);
-				RangeRealDomain domain= new RangeRealDomain();
+				Collection<Float> floats= new LinkedList<Float>();
+				floats.add(val);
+				floats.add(Float.MAX_VALUE) ;floats.add(Float.MAX_VALUE);
+				RealRange range = new RealRange(floats);
+				Domain domain= new Domain();
 				domain.addRange(range);
 				attribute.setDomain(domain);
-				attribute.setValue(val);
+				//attribute.setValue(val);
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((RealAttrDefUnbounded) at).getName().getHead().getOwnedFeature().getName());
 				searchFeatureByName.addAttribute(attribute);
@@ -389,14 +427,14 @@ public class VMReader implements IReader {
 					attribute.setDefaultValue(defaultvalue);
 				}
 				
-				List<String> vals= new ArrayList<String>();
+				Collection<String> vals= new ArrayList<String>();
 				EList<String> values = ((EnumIntegerDef) at).getValue();
 				for(String value:values){
 					vals.add(value);
 				}
 				
-				Domain domain= new StringDomain(vals);
-				attribute.setDomain(domain);
+				Range range= new StringRange(vals);
+				attribute.setDomain(new Domain(range));
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((EnumIntegerDef) at).getName().getHead().getOwnedFeature().getName());
 				searchFeatureByName.addAttribute(attribute);
@@ -413,8 +451,8 @@ public class VMReader implements IReader {
 					vals.add(Integer.parseInt(value));
 				}
 				
-				Domain domain= new SetIntegerDomain(vals);
-				attribute.setDomain(domain);
+				Range range= new IntegerRange(vals);
+				attribute.setDomain(new Domain(range));
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((EnumIntegerDef) at).getName().getHead().getOwnedFeature().getName());
 				searchFeatureByName.addAttribute(attribute);
@@ -431,8 +469,8 @@ public class VMReader implements IReader {
 					vals.add(Float.parseFloat(value));
 				}
 				
-				Domain domain= new SetRealDomain(vals);
-				attribute.setDomain(domain);
+				Range range= new RealRange(vals);
+				attribute.setDomain(new Domain(range));
 				attribute.setName(name);
 				fr.familiar.attributedfm.Feature searchFeatureByName = fm.searchFeatureByName(((EnumRealDef) at).getName().getHead().getOwnedFeature().getName());
 				searchFeatureByName.addAttribute(attribute);
@@ -476,10 +514,15 @@ public class VMReader implements IReader {
 						feat.nonDecision=vmfeature.isNotDecidable();
 						//addding range (if not specified =1,1)
 						if(vmfeature.getMin()!=null &&vmfeature.getMax()!=null){
-							feat.clone.add(new Range(Integer.parseInt(vmfeature.getMin()),Integer.parseInt(vmfeature.getMax())));
+							IntegerRange r = new IntegerRange();
+							r.getItems().add(vmfeature.getMin());
+							r.getItems().add(vmfeature.getMax());
+							
+							feat.clone.add(r);
 						}else{
-							feat.clone.add(new Range(1,1));
-						}
+							IntegerRange r = new IntegerRange();
+							r.getItems().add(1);
+							feat.clone.add(r);						}
 						frel.addDestination(feat);
 					} else if (fdef instanceof FeatureHierarchy) {
 						Feature vmfeature=((FeatureHierarchy) fdef).getParent();
@@ -488,9 +531,15 @@ public class VMReader implements IReader {
 						feat.nonTranstalable=vmfeature.isNotTranslatable();
 						feat.runTime=vmfeature.isRunTime();
 						if(vmfeature.getMin()!=null &&vmfeature.getMax()!=null){
-							feat.clone.add(new Range(Integer.parseInt(vmfeature.getMin()),Integer.parseInt(vmfeature.getMax())));
+							IntegerRange r = new IntegerRange();
+							r.getItems().add(vmfeature.getMin());
+							r.getItems().add(vmfeature.getMax());
+							
+							feat.clone.add(r);
 						}else{
-							feat.clone.add(new Range(1,1));
+							IntegerRange r = new IntegerRange();
+							r.getItems().add(1);
+							feat.clone.add(r);
 						}
 						frel.addDestination(feat);
 						visitFeatureHierarchy(feat, (FeatureHierarchy) fdef);

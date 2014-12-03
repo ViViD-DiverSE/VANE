@@ -1,24 +1,30 @@
 // $ANTLR : "TreeParser.g" -> "FaMaTreeParser.java"$
 
-	package es.us.isa.FAMA.parser;    
-	import java.util.*;	
-	import fr.familiar.attributedfm.*;
-	import fr.familiar.attributedfm.domain.*;
-	
-	import fr.familiar.attributedfm.util.*;
-	import es.us.isa.FAMA.parser.*;
+package es.us.isa.FAMA.parser;    
 
-import antlr.TreeParser;
-import antlr.Token;
-import antlr.collections.AST;
-import antlr.RecognitionException;
-import antlr.ANTLRException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Map;
+
 import antlr.NoViableAltException;
-import antlr.MismatchedTokenException;
-import antlr.SemanticException;
-import antlr.collections.impl.BitSet;
-import antlr.ASTPair;
-import antlr.collections.impl.ASTArray;
+import antlr.RecognitionException;
+import antlr.collections.AST;
+import fr.familiar.attributedfm.AttributedFeatureModel;
+import fr.familiar.attributedfm.ComplexConstraint;
+import fr.familiar.attributedfm.Constraint;
+import fr.familiar.attributedfm.ExcludesDependency;
+import fr.familiar.attributedfm.Feature;
+import fr.familiar.attributedfm.GenericAttribute;
+import fr.familiar.attributedfm.Relation;
+import fr.familiar.attributedfm.RequiresDependency;
+import fr.familiar.attributedfm.domain.Cardinality;
+import fr.familiar.attributedfm.domain.Domain;
+import fr.familiar.attributedfm.domain.IntegerRange;
+import fr.familiar.attributedfm.domain.Range;
+import fr.familiar.attributedfm.util.Tree;
 
 
 public class FaMaTreeParser extends antlr.TreeParser       implements FaMaTreeParserTokenTypes
@@ -137,25 +143,24 @@ public class FaMaTreeParser extends antlr.TreeParser       implements FaMaTreePa
 		if (it.hasNext()){
 			Object aux = it.next();
 			if (aux instanceof Integer){
-				SetIntegerDomain auxDomain = new SetIntegerDomain();
-				d = new SetIntegerDomain();
+				
+				IntegerRange auxDomain = new IntegerRange();
 				Integer i = (Integer)aux;
-				auxDomain.addValue(i);
+				auxDomain.getItems().add(i);
 				while (it.hasNext()){
 					aux = it.next();
 					if (aux instanceof Integer){
 						i = (Integer)aux;
-						auxDomain.addValue(i);
+						auxDomain.getItems().add(i);
 					}
 					else{
 						throw new IllegalStateException("Different types on the attribute domain");	
 					}
 				}
-				d = auxDomain;
+				d = new Domain(auxDomain);
 			}
 			else{
 				ObjectDomain auxDomain = new ObjectDomain();
-				//d = new ObjectDomain();
 				auxDomain.addValue(aux);
 				while (it.hasNext()){
 					aux = it.next();
@@ -171,9 +176,10 @@ public class FaMaTreeParser extends antlr.TreeParser       implements FaMaTreePa
 	}
 	
 	public Range createRange(AST min, AST max){
-		int minimo = Integer.parseInt(min.getText());
-		int maximo = Integer.parseInt(max.getText());
-		Range res = new Range (minimo,maximo);
+		Collection<Integer> vals= new LinkedList<Integer>();
+		vals.add(Integer.parseInt(min.getText()));
+		vals.add(Integer.parseInt(max.getText()));
+		Range res = new IntegerRange (vals);
 		return res;	
 	}
 	
@@ -341,8 +347,8 @@ public FaMaTreeParser() {
 		return feat;
 	}
 	
-	public final RangeIntegerDomain  dom(AST _t) throws RecognitionException {
-		RangeIntegerDomain d = new RangeIntegerDomain();;
+	public final Domain  dom(AST _t) throws RecognitionException {
+		Domain d = new Domain();;
 		
 		AST dom_AST_in = (_t == ASTNULL) ? null : (AST)_t;
 		AST min = null;
@@ -620,7 +626,9 @@ public FaMaTreeParser() {
 			_t = _retTree;
 			_t = __t2270;
 			_t = _t.getNextSibling();
-			d = new RangeIntegerDomain(ranges);
+			
+			d = new Domain();
+			d.ranges=ranges;
 		}
 		catch (RecognitionException ex) {
 			reportError(ex);

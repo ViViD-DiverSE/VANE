@@ -17,45 +17,34 @@
  */
 package fr.familiar.attributedfm.domain;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import org.eclipse.emf.ecore.EObject;
+
 
 /**
  * Represents a Range
  */
-public class Range {
+public abstract class Range {
 
-	private int max;
-	
-	private int min;
+	Collection items;
 
-	
-	public Range(int min, int max) {
-		this.max = max;
-		this.min = min;
+	public Object getMax() {
+		return Collections.max(items);
 	}
 
-	public int getMax() {
-		return max;
+	public Object getMin() {
+		return Collections.min(items);
 	}
 
-	public int getMin() {
-		return min;
+	public boolean isBounded(){
+		return items.size()>2;
 	}
 
-	public void setMax(int max) {
-		this.max = max;
-	}
-
-	public void setMin(int min) {
-		this.min = min;
-	}
-	
-	public boolean isInRange(int i){
-		if (i <= max && i >= min){
-			return true;
-		}
-		else{
-			return false;
-		}
+	public Collection getItems() {
+		return items;
 	}
 	
 	

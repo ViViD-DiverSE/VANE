@@ -17,20 +17,18 @@
  */
 package fr.familiar.attributedfm;
 
-import fr.familiar.attributedfm.domain.BoundedElement;
 import fr.familiar.attributedfm.domain.Domain;
 
 /**
  * 
  */
-public class GenericAttribute extends BoundedElement {
+public class GenericAttribute  {
 
 	protected Feature feature;
 
-	protected Object value;
-
+	protected Domain domain;
+	protected String name;
 	protected Object defaultValue;
-
 	protected Object nullValue;
 
 	public boolean nonTranstalable=false;
@@ -45,7 +43,6 @@ public class GenericAttribute extends BoundedElement {
 		name = n;
 		defaultValue = dv;
 		nullValue = nv;
-		value = null;
 		
 	}
 
@@ -53,7 +50,6 @@ public class GenericAttribute extends BoundedElement {
 		name = n;
 		defaultValue = 0;
 		nullValue = 0;
-		value = 0;
 	}
 	public Object getNullValue() {
 		return nullValue;
@@ -63,13 +59,7 @@ public class GenericAttribute extends BoundedElement {
 		this.nullValue = nullValue;
 	}
 
-	public Object getValue() {
-		return value;
-	}
 
-	public void setValue(Object o) {
-		value = o;
-	}
 
 	public Object getDefaultValue() {
 		return defaultValue;
@@ -91,20 +81,6 @@ public class GenericAttribute extends BoundedElement {
 		return feature.getName() + "." + name;
 	}
 
-	public Integer getIntegerValue(Object o) {
-		Integer res;
-		if (o instanceof Integer) {
-			res = (Integer) o;
-		} else {
-			if (o.equals(nullValue)) {
-				res = OBJECT_NULL_VALUE;
-			} else {
-				res = domain.getIntegerValue(o);
-			}
-		}
-		// Integer res = domain.getIntegerValue(o);
-		return res;
-	}
 
 	public boolean equals(Object o) {
 		boolean b = false;
@@ -117,7 +93,21 @@ public class GenericAttribute extends BoundedElement {
 		return b;
 	}
 
-	public boolean hasFixedValue() {
-		return (value != null);
+	public String getName() {
+		return this.name;
 	}
+
+	public Domain getDomain() {
+		return this.domain;
+	}
+
+	public void setDomain(Domain domain) {
+		this.domain=domain;
+	}
+
+	public void setName(String name) {
+		this.name=name;
+		
+	}
+
 }

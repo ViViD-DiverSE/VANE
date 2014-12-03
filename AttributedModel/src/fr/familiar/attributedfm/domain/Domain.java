@@ -17,17 +17,27 @@
  */
 package fr.familiar.attributedfm.domain;
 
-import java.util.Set;
+import java.util.Collection;
+import java.util.LinkedList;
 
 /**
  * This class represents a Domain  
  */
-public abstract class Domain {
+public class Domain {
 
-	public abstract Set<Integer> getAllIntegerValues();
+	public Collection<Range> ranges;
+
+	public Domain(){ranges= new LinkedList<Range>();};
 	
-	public abstract Object getValue(int i);
+	public Domain(Range r){
+		//useful when only 1 range
+		ranges= new LinkedList<Range>();
+		this.ranges.add(r);
+	}
 	
-	public abstract Integer getIntegerValue(Object o);
+	public void addRange(Range range) {
+		this.ranges.add(range);
+		
+	}
 	
 }

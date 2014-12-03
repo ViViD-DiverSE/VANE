@@ -26,10 +26,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import fr.familiar.attributedfm.domain.BooleanRange;
 import fr.familiar.attributedfm.domain.Domain;
 import fr.familiar.attributedfm.domain.Range;
-import fr.familiar.attributedfm.domain.RangeIntegerDomain;
-import fr.familiar.attributedfm.domain.SetIntegerDomain;
+
 import fr.familiar.attributedfm.util.Node;
 
 public class Feature extends VariabilityElement{
@@ -54,9 +54,7 @@ public class Feature extends VariabilityElement{
 	}
 	
 	public Feature (String name) {
-		RangeIntegerDomain d = new RangeIntegerDomain();
-		d.addRange(new Range(0, 1));
-		this.setDomain(d);
+		this.setDomain(new Domain(new BooleanRange()));
 		this.name = name;
 		this.parent_relation = null;
 		this.clone=new ArrayList<Range>();
@@ -137,6 +135,7 @@ public class Feature extends VariabilityElement{
 	
 	public void addAttribute(GenericAttribute a){
 		attributes.put(a.getName(),a);
+		a.feature=this;
 
 	}
 	/**
